@@ -144,6 +144,13 @@
             border-radius: 6px;
             margin-top: 20px;
         }
+        .instrucciones {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
     </style>
 </head>
 <body>
@@ -176,6 +183,10 @@
                 <p style="margin: 5px 0 0 0;">Negocio: Video, Fotografía, Web, Redes Sociales, Impresiones</p>
             </div>
             <button class="logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
+        </div>
+
+        <div class="instrucciones">
+            <strong>📋 Instrucciones:</strong> Tus datos se guardan automáticamente. El saldo se calcula fila por fila sumando ingresos y restando egresos.
         </div>
 
         <div class="tabs">
@@ -211,6 +222,10 @@
                         <div class="label">Balance</div>
                         <div class="valor" id="rBalN">$0</div>
                     </div>
+                    <div class="resumen-item">
+                        <div class="label">Saldo Final</div>
+                        <div class="valor" id="rSaldoN">$5,000</div>
+                    </div>
                 </div>
             </div>
 
@@ -227,12 +242,12 @@
                 </thead>
                 <tbody id="bodyNegocio">
                     <tr>
-                        <td><input type="date" value="2026-01-16"></td>
-                        <td><input type="text" value="Saldo inicial"></td>
-                        <td><select><option>Inicial</option></select></td>
+                        <td><input type="date" value="2026-01-16" onchange="guardar()"></td>
+                        <td><input type="text" value="Saldo inicial" onchange="guardar()"></td>
+                        <td><select onchange="guardar()"><option>Inicial</option></select></td>
                         <td class="ingreso"><input type="number" value="0" readonly></td>
                         <td class="egreso"><input type="number" value="0" readonly></td>
-                        <td class="saldo"><input type="number" value="5000" onchange="calc('n')"></td>
+                        <td class="saldo"><input type="number" value="5000" onchange="calc('n');guardar()"></td>
                     </tr>
                 </tbody>
             </table>
@@ -267,6 +282,10 @@
                         <div class="label">Balance</div>
                         <div class="valor" id="rBalP">$0</div>
                     </div>
+                    <div class="resumen-item">
+                        <div class="label">Saldo Final</div>
+                        <div class="valor" id="rSaldoP">$3,000</div>
+                    </div>
                 </div>
             </div>
 
@@ -283,12 +302,12 @@
                 </thead>
                 <tbody id="bodyPersonal">
                     <tr>
-                        <td><input type="date" value="2026-01-16"></td>
-                        <td><input type="text" value="Saldo inicial"></td>
-                        <td><select><option>Inicial</option></select></td>
+                        <td><input type="date" value="2026-01-16" onchange="guardar()"></td>
+                        <td><input type="text" value="Saldo inicial" onchange="guardar()"></td>
+                        <td><select onchange="guardar()"><option>Inicial</option></select></td>
                         <td class="ingreso"><input type="number" value="0" readonly></td>
                         <td class="egreso"><input type="number" value="0" readonly></td>
-                        <td class="saldo"><input type="number" value="3000" onchange="calc('p')"></td>
+                        <td class="saldo"><input type="number" value="3000" onchange="calc('p');guardar()"></td>
                     </tr>
                 </tbody>
             </table>
@@ -308,6 +327,9 @@
                 document.getElementById('appContainer').style.display = 'block';
                 document.body.style.background = '#f5f5f5';
                 initMeses();
+                cargar();
+                calc('n');
+                calc('p');
                 filtrarNegocio();
                 filtrarPersonal();
             } else {
@@ -317,9 +339,12 @@
         }
 
         function logout() {
+            guardar();
             document.getElementById('loginContainer').style.display = 'block';
             document.getElementById('appContainer').style.display = 'none';
             document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
         }
 
         function showTab(t) {
@@ -347,14 +372,15 @@
             const row = body.insertRow();
             const hoy = new Date().toISOString().split('T')[0];
             row.innerHTML = `
-                <td><input type="date" value="${hoy}" onchange="calc('${tipo}')"></td>
-                <td><input type="text" onchange="calc('${tipo}')"></td>
-                <td><select onchange="calc('${tipo}')">${cats.map(c => '<option>'+c+'</option>').join('')}</select></td>
-                <td class="ingreso"><input type="number" step="0.01" value="0" onchange="calc('${tipo}')"></td>
-                <td class="egreso"><input type="number" step="0.01" value="0" onchange="calc('${tipo}')"></td>
+                <td><input type="date" value="${hoy}" onchange="calc('${tipo}');guardar()"></td>
+                <td><input type="text" onchange="guardar()"></td>
+                <td><select onchange="guardar()">${cats.map(c => '<option>'+c+'</option>').join('')}</select></td>
+                <td class="ingreso"><input type="number" step="0.01" value="0" onchange="calc('${tipo}');guardar()"></td>
+                <td class="egreso"><input type="number" step="0.01" value="0" onchange="calc('${tipo}');guardar()"></td>
                 <td class="saldo"><input type="number" readonly></td>
             `;
             calc(tipo);
+            guardar();
             tipo === 'n' ? filtrarNegocio() : filtrarPersonal();
         }
 
@@ -369,16 +395,15 @@
                 const egr = parseFloat(inp[4].value) || 0;
                 
                 if (i === 0) {
-                    // Primera fila: saldo inicial (editable)
                     saldoAnterior = parseFloat(inp[5].value) || 0;
                     inp[5].value = saldoAnterior.toFixed(2);
                 } else {
-                    // Filas siguientes: calcular saldo
                     const saldoActual = saldoAnterior + ing - egr;
                     inp[5].value = saldoActual.toFixed(2);
                     saldoAnterior = saldoActual;
                 }
             }
+            
             tipo === 'n' ? filtrarNegocio() : filtrarPersonal();
         }
 
@@ -387,7 +412,8 @@
             const anio = document.getElementById('anioNegocio').value;
             const body = document.getElementById('bodyNegocio');
             const rows = body.getElementsByTagName('tr');
-            let ing = 0, egr = 0;
+            let ing = 0, egr = 0, saldoFinal = 0;
+            
             for (let i = 1; i < rows.length; i++) {
                 const fecha = rows[i].cells[0].querySelector('input').value;
                 const [y,m] = fecha.split('-');
@@ -399,9 +425,15 @@
                     rows[i].style.display = 'none';
                 }
             }
-            document.getElementById('rIngN').textContent = '$' + ing.toFixed(2);
-            document.getElementById('rEgrN').textContent = '$' + egr.toFixed(2);
-            document.getElementById('rBalN').textContent = '$' + (ing-egr).toFixed(2);
+            
+            if (rows.length > 0) {
+                saldoFinal = parseFloat(rows[rows.length - 1].cells[5].querySelector('input').value) || 0;
+            }
+            
+            document.getElementById('rIngN').textContent = '$' + ing.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('rEgrN').textContent = '$' + egr.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('rBalN').textContent = '$' + (ing-egr).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('rSaldoN').textContent = '$' + saldoFinal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
         function filtrarPersonal() {
@@ -409,7 +441,8 @@
             const anio = document.getElementById('anioPersonal').value;
             const body = document.getElementById('bodyPersonal');
             const rows = body.getElementsByTagName('tr');
-            let ing = 0, egr = 0;
+            let ing = 0, egr = 0, saldoFinal = 0;
+            
             for (let i = 1; i < rows.length; i++) {
                 const fecha = rows[i].cells[0].querySelector('input').value;
                 const [y,m] = fecha.split('-');
@@ -421,9 +454,74 @@
                     rows[i].style.display = 'none';
                 }
             }
-            document.getElementById('rIngP').textContent = '$' + ing.toFixed(2);
-            document.getElementById('rEgrP').textContent = '$' + egr.toFixed(2);
-            document.getElementById('rBalP').textContent = '$' + (ing-egr).toFixed(2);
+            
+            if (rows.length > 0) {
+                saldoFinal = parseFloat(rows[rows.length - 1].cells[5].querySelector('input').value) || 0;
+            }
+            
+            document.getElementById('rIngP').textContent = '$' + ing.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('rEgrP').textContent = '$' + egr.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('rBalP').textContent = '$' + (ing-egr).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('rSaldoP').textContent = '$' + saldoFinal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function guardar() {
+            const datosN = { rows: Array.from(document.getElementById('bodyNegocio').rows).map(r => ({
+                fecha: r.cells[0].querySelector('input').value,
+                desc: r.cells[1].querySelector('input').value,
+                cat: r.cells[2].querySelector('select').value,
+                ing: r.cells[3].querySelector('input').value,
+                egr: r.cells[4].querySelector('input').value,
+                saldo: r.cells[5].querySelector('input').value
+            }))};
+
+            const datosP = { rows: Array.from(document.getElementById('bodyPersonal').rows).map(r => ({
+                fecha: r.cells[0].querySelector('input').value,
+                desc: r.cells[1].querySelector('input').value,
+                cat: r.cells[2].querySelector('select').value,
+                ing: r.cells[3].querySelector('input').value,
+                egr: r.cells[4].querySelector('input').value,
+                saldo: r.cells[5].querySelector('input').value
+            }))};
+
+            localStorage.setItem('finanzasData', JSON.stringify({negocio: datosN, personal: datosP}));
+        }
+
+        function cargar() {
+            const datos = localStorage.getItem('finanzasData');
+            if (!datos) return;
+            
+            const d = JSON.parse(datos);
+            
+            const bodyN = document.getElementById('bodyNegocio');
+            bodyN.innerHTML = '';
+            d.negocio.rows.forEach((r, i) => {
+                const row = bodyN.insertRow();
+                const isFirst = i === 0;
+                row.innerHTML = `
+                    <td><input type="date" value="${r.fecha}" onchange="calc('n');guardar()"></td>
+                    <td><input type="text" value="${r.desc}" onchange="guardar()"></td>
+                    <td><select onchange="guardar()">${catN.map(c => '<option'+(c===r.cat?' selected':'')+'>'+c+'</option>').join('')}</select></td>
+                    <td class="ingreso"><input type="number" step="0.01" value="${r.ing}" ${isFirst?'readonly':''} onchange="calc('n');guardar()"></td>
+                    <td class="egreso"><input type="number" step="0.01" value="${r.egr}" ${isFirst?'readonly':''} onchange="calc('n');guardar()"></td>
+                    <td class="saldo"><input type="number" value="${r.saldo}" ${isFirst?'onchange="calc(\'n\');guardar()"':'readonly'}></td>
+                `;
+            });
+
+            const bodyP = document.getElementById('bodyPersonal');
+            bodyP.innerHTML = '';
+            d.personal.rows.forEach((r, i) => {
+                const row = bodyP.insertRow();
+                const isFirst = i === 0;
+                row.innerHTML = `
+                    <td><input type="date" value="${r.fecha}" onchange="calc('p');guardar()"></td>
+                    <td><input type="text" value="${r.desc}" onchange="guardar()"></td>
+                    <td><select onchange="guardar()">${catP.map(c => '<option'+(c===r.cat?' selected':'')+'>'+c+'</option>').join('')}</select></td>
+                    <td class="ingreso"><input type="number" step="0.01" value="${r.ing}" ${isFirst?'readonly':''} onchange="calc('p');guardar()"></td>
+                    <td class="egreso"><input type="number" step="0.01" value="${r.egr}" ${isFirst?'readonly':''} onchange="calc('p');guardar()"></td>
+                    <td class="saldo"><input type="number" value="${r.saldo}" ${isFirst?'onchange="calc(\'p\');guardar()"':'readonly'}></td>
+                `;
+            });
         }
     </script>
 </body>
