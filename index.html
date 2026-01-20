@@ -410,16 +410,15 @@
             const hoy = new Date().toISOString().split('T')[0];
             row.innerHTML = `
                 <td><input type="date" value="${hoy}" onchange="calc('${tipo}');guardar()"></td>
-                <td><input type="text" onchange="guardar()"></td>
+                <td><input type="text" placeholder="Descripción" onchange="guardar()"></td>
                 <td><select onchange="guardar()">${cats.map(c => '<option>'+c+'</option>').join('')}</select></td>
-                <td class="ingreso"><input type="number" step="0.01" value="0" onchange="calc('${tipo}');guardar()"></td>
-                <td class="egreso"><input type="number" step="0.01" value="0" onchange="calc('${tipo}');guardar()"></td>
+                <td class="ingreso"><input type="number" step="0.01" value="0" oninput="calc('${tipo}')" onchange="guardar()" onfocus="this.select()"></td>
+                <td class="egreso"><input type="number" step="0.01" value="0" oninput="calc('${tipo}')" onchange="guardar()" onfocus="this.select()"></td>
                 <td class="saldo"><input type="number" readonly></td>
                 <td><button class="btn-delete" onclick="borrarFila(this, '${tipo}')">❌</button></td>
             `;
             calc(tipo);
             guardar();
-            tipo === 'n' ? filtrarNegocio() : filtrarPersonal();
         }
 
         function borrarFila(btn, tipo) {
@@ -532,7 +531,11 @@
                 saldo: r.cells[5].querySelector('input').value
             }))};
 
-            localStorage.setItem('finanzasData', JSON.stringify({negocio: datosN, personal: datosP}));
+            try {
+                localStorage.setItem('finanzasData', JSON.stringify({negocio: datosN, personal: datosP}));
+            } catch(e) {
+                console.error('Error guardando:', e);
+            }
         }
 
         function cargar() {
@@ -550,9 +553,9 @@
                     <td><input type="date" value="${r.fecha}" onchange="calc('n');guardar()"></td>
                     <td><input type="text" value="${r.desc}" onchange="guardar()"></td>
                     <td><select onchange="guardar()">${catN.map(c => '<option'+(c===r.cat?' selected':'')+'>'+c+'</option>').join('')}</select></td>
-                    <td class="ingreso"><input type="number" step="0.01" value="${r.ing}" ${isFirst?'readonly':''} onchange="calc('n');guardar()"></td>
-                    <td class="egreso"><input type="number" step="0.01" value="${r.egr}" ${isFirst?'readonly':''} onchange="calc('n');guardar()"></td>
-                    <td class="saldo"><input type="number" value="${r.saldo}" ${isFirst?'onchange="calc(\'n\');guardar()"':'readonly'}></td>
+                    <td class="ingreso"><input type="number" step="0.01" value="${r.ing}" ${isFirst?'readonly':''} oninput="calc('n')" onchange="guardar()" onfocus="this.select()"></td>
+                    <td class="egreso"><input type="number" step="0.01" value="${r.egr}" ${isFirst?'readonly':''} oninput="calc('n')" onchange="guardar()" onfocus="this.select()"></td>
+                    <td class="saldo"><input type="number" value="${r.saldo}" ${isFirst?'onchange="calc(\'n\');guardar()" onfocus="this.select()"':'readonly'}></td>
                     <td>${isFirst?'':'<button class="btn-delete" onclick="borrarFila(this, \'n\')">❌</button>'}</td>
                 `;
             });
@@ -566,9 +569,9 @@
                     <td><input type="date" value="${r.fecha}" onchange="calc('p');guardar()"></td>
                     <td><input type="text" value="${r.desc}" onchange="guardar()"></td>
                     <td><select onchange="guardar()">${catP.map(c => '<option'+(c===r.cat?' selected':'')+'>'+c+'</option>').join('')}</select></td>
-                    <td class="ingreso"><input type="number" step="0.01" value="${r.ing}" ${isFirst?'readonly':''} onchange="calc('p');guardar()"></td>
-                    <td class="egreso"><input type="number" step="0.01" value="${r.egr}" ${isFirst?'readonly':''} onchange="calc('p');guardar()"></td>
-                    <td class="saldo"><input type="number" value="${r.saldo}" ${isFirst?'onchange="calc(\'p\');guardar()"':'readonly'}></td>
+                    <td class="ingreso"><input type="number" step="0.01" value="${r.ing}" ${isFirst?'readonly':''} oninput="calc('p')" onchange="guardar()" onfocus="this.select()"></td>
+                    <td class="egreso"><input type="number" step="0.01" value="${r.egr}" ${isFirst?'readonly':''} oninput="calc('p')" onchange="guardar()" onfocus="this.select()"></td>
+                    <td class="saldo"><input type="number" value="${r.saldo}" ${isFirst?'onchange="calc(\'p\');guardar()" onfocus="this.select()"':'readonly'}></td>
                     <td>${isFirst?'':'<button class="btn-delete" onclick="borrarFila(this, \'p\')">❌</button>'}</td>
                 `;
             });
@@ -579,19 +582,29 @@
             const body = document.getElementById(tipo === 'n' ? 'bodyNegocio' : 'bodyPersonal');
             const rows = body.getElementsByTagName('tr');
             
-            let csv = 'Fecha,Descripción,Categoría,Ingreso,Egreso,Saldo\n';
+            let csv = 'Fecha,Descripcion,Categoria,Ingreso,Egreso,Saldo\n';
             
             for (let i = 0; i < rows.length; i++) {
                 const inp = rows[i].getElementsByTagName('input');
                 const sel = rows[i].getElementsByTagName('select')[0];
-                csv += `${inp[0].value},${inp[1].value},${sel.value},${inp[3].value},${inp[4].value},${inp[5].value}\n`;
+                const fecha = inp[0].value;
+                const desc = inp[1].value.replace(/,/g, ';');
+                const cat = sel.value.replace(/,/g, ';');
+                const ing = inp[3].value;
+                const egr = inp[4].value;
+                const saldo = inp[5].value;
+                csv += `${fecha},${desc},${cat},${ing},${egr},${saldo}\n`;
             }
             
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Control_${nombre}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Control_${nombre}_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         }
 
         function exportarCSV(tipo) {
