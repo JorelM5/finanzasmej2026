@@ -280,8 +280,8 @@
             </table>
             <button class="add-row" onclick="add('n')">➕ Agregar</button>
             <div class="export-btns">
-                <button class="btn-export" onclick="exportarExcel('n')">📊 Descargar Excel</button>
-                <button class="btn-export" onclick="exportarCSV('n')">📄 Descargar CSV</button>
+                <button class="btn-export" onclick="copiarPortapapeles('n')">📋 Copiar Datos</button>
+                <button class="btn-export" onclick="exportarExcel('n')">📊 Descargar</button>
             </div>
         </div>
 
@@ -346,8 +346,8 @@
             </table>
             <button class="add-row" onclick="add('p')">➕ Agregar</button>
             <div class="export-btns">
-                <button class="btn-export" onclick="exportarExcel('p')">📊 Descargar Excel</button>
-                <button class="btn-export" onclick="exportarCSV('p')">📄 Descargar CSV</button>
+                <button class="btn-export" onclick="copiarPortapapeles('p')">📋 Copiar Datos</button>
+                <button class="btn-export" onclick="exportarExcel('p')">📊 Descargar</button>
             </div>
         </div>
     </div>
@@ -577,13 +577,46 @@
             });
         }
 
+        function copiarPortapapeles(tipo) {
+            const nombre = tipo === 'n' ? 'Negocio' : 'Personal';
+            const body = document.getElementById(tipo === 'n' ? 'bodyNegocio' : 'bodyPersonal');
+            const rows = body.getElementsByTagName('tr');
+            
+            // Crear texto tabulado para Excel
+            let contenido = 'Fecha\tDescripcion\tCategoria\tIngreso\tEgreso\tSaldo\n';
+            
+            for (let i = 0; i < rows.length; i++) {
+                const inputs = rows[i].getElementsByTagName('input');
+                const select = rows[i].getElementsByTagName('select')[0];
+                
+                const fecha = inputs[0].value;
+                const desc = inputs[1].value;
+                const cat = select.value;
+                const ing = inputs[3].value;
+                const egr = inputs[4].value;
+                const saldo = inputs[5].value;
+                
+                contenido += `${fecha}\t${desc}\t${cat}\t${ing}\t${egr}\t${saldo}\n`;
+            }
+            
+            // Copiar al portapapeles
+            navigator.clipboard.writeText(contenido).then(() => {
+                alert('✅ ¡Datos copiados!\n\n1. Abre Excel o Numbers\n2. Pega (Cmd+V)\n3. Los datos se pegarán en columnas\n\nTambién puedes pegar en Google Sheets');
+            }).catch(() => {
+                // Si falla el portapapeles, mostrar en ventana
+                const ventana = window.open('', '_blank');
+                ventana.document.write('<pre>' + contenido.replace(/\t/g, ',') + '</pre>');
+                ventana.document.write('<p>Selecciona todo (Cmd+A), copia (Cmd+C) y pega en Excel</p>');
+            });
+        }
+
         function exportarExcel(tipo) {
             const nombre = tipo === 'n' ? 'Negocio' : 'Personal';
             const body = document.getElementById(tipo === 'n' ? 'bodyNegocio' : 'bodyPersonal');
             const rows = body.getElementsByTagName('tr');
             
             // Crear CSV
-            let contenido = 'Fecha,Descripcion,Categoria,Ingreso,Egreso,Saldo\r\n';
+            let contenido = 'Fecha,Descripcion,Categoria,Ingreso,Egreso,Saldo\n';
             
             for (let i = 0; i < rows.length; i++) {
                 const inputs = rows[i].getElementsByTagName('input');
@@ -596,41 +629,24 @@
                 const egr = inputs[4].value;
                 const saldo = inputs[5].value;
                 
-                contenido += `${fecha},${desc},${cat},${ing},${egr},${saldo}\r\n`;
+                contenido += `${fecha},${desc},${cat},${ing},${egr},${saldo}\n`;
             }
             
-            // Método compatible con Safari
-            const blob = new Blob([contenido], { type: 'text/csv' });
+            // Crear data URI
+            const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(contenido);
             const filename = `Control_${nombre}_${new Date().toISOString().split('T')[0]}.csv`;
             
-            // Detectar Safari
-            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            const a = document.createElement('a');
+            a.href = dataUri;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             
-            if (isSafari) {
-                // Para Safari: usar FileReader
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const a = document.createElement('a');
-                    a.href = e.target.result;
-                    a.download = filename;
-                    a.click();
-                };
-                reader.readAsDataURL(blob);
-            } else {
-                // Para otros navegadores
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 100);
-            }
-            
-            alert('✅ Archivo descargado!\n\nBusca: ' + filename + '\n\nEn tu carpeta de Descargas');
+            setTimeout(() => {
+                alert('✅ Archivo descargado!\n\nBusca: ' + filename + '\n\nSi no se descargó, usa el botón "📋 Copiar Datos"');
+            }, 500);
         }
 
         function exportarCSV(tipo) {
